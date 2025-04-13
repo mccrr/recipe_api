@@ -27,12 +27,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = 'recipes.User'  # change 'yourappname' to your app
+
+
 
 # Application definition
 
 INSTALLED_APPS = [
     'recipes',
     'ai_model', 
+    'rest_framework',
+    'rest_framework_simplejwt',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -71,29 +76,41 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'recipe_api.wsgi.application'
 
+import os
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+USE_LOCAL_DB = False
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': 'recipe_db',  # The name of your MongoDB database
-        'CLIENT': {
-            'host': 'mongodb+srv://muhamedcurri1:ki5EJmvjZSOyZURp@recipeapi.57sdw.mongodb.net/?retryWrites=true&w=majority&appName=RecipeAPI',  # Default MongoDB connection URI
-            # 'username': 'your_mongo_username',  # If you have authentication
-            # 'password': 'your_mongo_password',  # If you have authentication
-            # 'authSource': 'admin',  # Auth database if needed
-        },
+if USE_LOCAL_DB:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': 'recipe_db_local',
+            'CLIENT': {
+                'host': 'mongodb://127.0.0.1:27017/',
+            },
+        }
     }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': 'recipe_db',
+            'CLIENT': {
+                'host': 'mongodb+srv://muhamedcurri1:ki5EJmvjZSOyZURp@recipeapi.57sdw.mongodb.net/?retryWrites=true&w=majority&appName=RecipeAPI',
+            },
+        }
+    }
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',  # Protects all views by default
+    ),
 }
+
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
