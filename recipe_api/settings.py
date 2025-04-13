@@ -75,22 +75,22 @@ WSGI_APPLICATION = 'recipe_api.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
-#DATABASES = {
+DATABASES = {
     'default': {
         'ENGINE': 'djongo',
         'NAME': 'recipe_db',  # The name of your MongoDB database
         'CLIENT': {
-            'host': 'mongodb://127.0.0.1:27017/',  # Default MongoDB connection URI
-            'username': 'your_mongo_username',  # If you have authentication
-            'password': 'your_mongo_password',  # If you have authentication
-            'authSource': 'admin',  # Auth database if needed
+            'host': 'mongodb+srv://muhamedcurri1:ki5EJmvjZSOyZURp@recipeapi.57sdw.mongodb.net/?retryWrites=true&w=majority&appName=RecipeAPI',  # Default MongoDB connection URI
+            # 'username': 'your_mongo_username',  # If you have authentication
+            # 'password': 'your_mongo_password',  # If you have authentication
+            # 'authSource': 'admin',  # Auth database if needed
         },
     }
 }
