@@ -11,31 +11,27 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-f%gvsp5q1pdx!zsbl8v(hm1m5wsw0p2$nftfsn@35n+p9@cue7'
+SECRET_KEY = config('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=lambda v: [s.strip() for s in v.split(',')])
 
-AUTH_USER_MODEL = 'recipes.User'  # change 'yourappname' to your app
-
-
+AUTH_USER_MODEL = 'recipes.User'
 
 # Application definition
-
 INSTALLED_APPS = [
     'recipes',
-    'ai_model', 
+    'ai_model',
     'rest_framework',
     'rest_framework_simplejwt',
     'django.contrib.admin',
@@ -76,45 +72,43 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'recipe_api.wsgi.application'
 
-import os
+# Media settings for ImageField
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
-USE_LOCAL_DB = False
+# Database configuration
+USE_LOCAL_DB = config('USE_LOCAL_DB', default=False, cast=bool)
 
-if USE_LOCAL_DB:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'djongo',
-            'NAME': 'recipe_db_local',
-            'CLIENT': {
-                'host': 'mongodb://127.0.0.1:27017/',
-            },
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'djongo',
+        'NAME': config('DB_NAME', default='recipe_db'),
+        'CLIENT': {
+            'host': config('MONGO_URI', default='mongodb://127.0.0.1:27017/' if USE_LOCAL_DB else None),
+        },
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'djongo',
-            'NAME': 'recipe_db',
-            'CLIENT': {
-                'host': 'mongodb+srv://muhamedcurri1:ki5EJmvjZSOyZURp@recipeapi.57sdw.mongodb.net/?retryWrites=true&w=majority&appName=RecipeAPI',
-            },
-        }
-    }
+}
 
+# REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',  # Protects all views by default
+        'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
 }
 
-
+# JWT configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -130,25 +124,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
