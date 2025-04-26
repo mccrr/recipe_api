@@ -1,24 +1,34 @@
-from djongo import models  # If you are using MongoDB with djongo
+# recipes/models.py
+from mongoengine import Document, StringField, EmailField, BooleanField, ListField
+from django.contrib.auth.hashers import make_password, check_password
 
-# Create your models here.
-
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-from django.db import models
-
-class UserManager(BaseUserManager):
+class UserManager:
     def create_user(self, username, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Users must have an email address")
-        user = self.model(username=username, email=email, **extra_fields)
+        user = User(username=username, email=email, **extra_fields)
         user.set_password(password)
-        user.save(using=self._db)
+        user.save()
         return user
 
-class User(AbstractBaseUser):
-    username = models.CharField(max_length=255, unique=True)
-    email = models.EmailField(unique=True)
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(username, email, password, **extra_fields)
 
-    objects = UserManager()
+class User(Document):
+    username = StringField(max_length=255, unique=True, required=True)
+    email = EmailField(unique=True, required=True)
+    password = StringField(required=True)
+    is_staff = BooleanField(default=False)
+    is_superuser = BooleanField(default=False)
+    is_active = BooleanField(default=True)
+
+    meta = {
+        'collection': 'users'
+    }
+
+    manager = UserManager()
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['email']
@@ -26,21 +36,31 @@ class User(AbstractBaseUser):
     def __str__(self):
         return self.username
 
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+        self.save()
 
-class Ingredient(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
 
-    def __str__(self):
-        return self.name
+    @property
+    def is_authenticated(self):
+        return True
 
-class Recipe(models.Model):
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    ingredients = models.JSONField(
-    )
-    instructions = models.JSONField(
-    )
-    image = models.ImageField(upload_to='recipe_images/', null=True, blank=True)
+    @property
+    def is_anonymous(self):
+        return False
+
+class Recipe(Document):
+    title = StringField(max_length=255, required=True)
+    description = StringField()
+    ingredients = ListField(StringField())
+    instructions = ListField(StringField())
+    image = StringField()
+
+    meta = {
+        'collection': 'recipes'
+    }
 
     def __str__(self):
         return self.title
