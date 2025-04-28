@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, EmailField, BooleanField, ListField
+from mongoengine import Document, StringField, EmailField, BooleanField, ListField, ReferenceField, ImageField
 from django.contrib.auth.hashers import make_password, check_password
 
 class UserManager:
@@ -55,7 +55,8 @@ class Recipe(Document):
     description = StringField()
     ingredients = ListField(StringField())
     instructions = ListField(StringField())
-    image = StringField()
+    image = ImageField()
+    user = ReferenceField(User, required=True)
 
     meta = {
         'collection': 'recipes'
@@ -63,3 +64,17 @@ class Recipe(Document):
 
     def __str__(self):
         return self.title
+
+class Bookmarks(Document):
+    user = ReferenceField(User, required=True)
+    recipe = ReferenceField(Recipe, required=True)
+
+    meta = {
+        'collection': 'bookmarks',
+        'indexes': [
+            {'fields': ['user', 'recipe'], 'unique': True}
+        ]
+    }
+
+    def __str__(self):
+        return f"{self.user.username} bookmarked {self.recipe.title}"

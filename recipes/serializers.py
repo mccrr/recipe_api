@@ -1,10 +1,11 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from mongoengine import Document
-from .models import Recipe, User
+from .models import Recipe, User, Bookmarks
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
+import base64
 
 class ObjectIdField(serializers.Field):
     def to_representation(self, value):
@@ -83,13 +84,43 @@ class LoginSerializer(serializers.Serializer):
         attrs['user'] = user
         return attrs
 
+class BookmarksSerializer(serializers.Serializer):
+    id = ObjectIdField(read_only=True)
+    user = ObjectIdField(read_only=True)
+    recipe = ObjectIdField()
+
+    def create(self, validated_data):
+        return Bookmarks(**validated_data).save()
+
+    def to_representation(self, instance):
+        representation = {
+            'id': str(instance.id),
+            'user': str(instance.user.id),
+            'recipe': str(instance.recipe.id)
+        }
+        return representation
+
 class RecipeSerializer(serializers.Serializer):
     id = ObjectIdField(read_only=True)
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(allow_blank=True)
     ingredients = serializers.ListField(child=serializers.CharField())
     instructions = serializers.ListField(child=serializers.CharField())
-    image = serializers.CharField(allow_blank=True)
+    image = serializers.ImageField(required=False, allow_null=True)
+    user = serializers.SerializerMethodField()
+    is_bookmarked = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return {
+            'id': str(obj.user.id),
+            'username': obj.user.username
+        }
+
+    def get_is_bookmarked(self, obj):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            return Bookmarks.objects(user=request.user, recipe=obj).count() > 0
+        return False
 
     def create(self, validated_data):
         return Recipe(**validated_data).save()
@@ -107,6 +138,12 @@ class RecipeSerializer(serializers.Serializer):
             'description': instance.description,
             'ingredients': instance.ingredients,
             'instructions': instance.instructions,
-            'image': instance.image or ''
+            'user': self.get_user(instance),
+            'is_bookmarked': self.get_is_bookmarked(instance)
         }
+        if instance.image:
+            image_data = instance.image.read()
+            representation['image'] = base64.b64encode(image_data).decode('utf-8')
+        else:
+            representation['image'] = None
         return representation
