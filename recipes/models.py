@@ -1,4 +1,3 @@
-# recipes/models.py
 from mongoengine import Document, StringField, EmailField, BooleanField, ListField
 from django.contrib.auth.hashers import make_password, check_password
 

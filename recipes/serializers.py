@@ -1,4 +1,3 @@
-# recipes/serializers.py
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from mongoengine import Document
@@ -18,7 +17,7 @@ class ObjectIdField(serializers.Field):
             raise serializers.ValidationError("Invalid ObjectId format")
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    email = serializers.EmailField(required=True)
+    username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
     @classmethod
@@ -29,12 +28,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         credentials = {
-            'email': attrs.get('email'),
+            'username': attrs.get('username'),
             'password': attrs.get('password')
         }
         user = authenticate(request=self.context.get('request'), **credentials)
         if not user:
-            raise serializers.ValidationError('Invalid email or password.')
+            raise serializers.ValidationError('Invalid username or password.')
 
         data = {}
         refresh = self.get_token(user)
@@ -63,23 +62,23 @@ class UserSerializer(serializers.Serializer):
         return instance
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
+    username = serializers.CharField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get('email')
+        username = attrs.get('username')
         password = attrs.get('password')
 
-        if not email or not password:
-            raise serializers.ValidationError('Must include both email and password.')
+        if not username or not password:
+            raise serializers.ValidationError('Must include both username and password.')
 
         user = authenticate(
             request=self.context.get('request'),
-            email=email,
+            username=username,
             password=password
         )
         if not user:
-            raise serializers.ValidationError('Invalid email or password.')
+            raise serializers.ValidationError('Invalid username or password.')
 
         attrs['user'] = user
         return attrs

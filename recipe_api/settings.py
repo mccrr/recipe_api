@@ -1,4 +1,3 @@
-# recipe_api/settings.py
 from pathlib import Path
 from decouple import config
 from datetime import timedelta

@@ -1,4 +1,3 @@
-# recipes/views.py
 from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
 from rest_framework.response import Response
@@ -23,8 +22,8 @@ class LoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token_serializer = CustomTokenObtainPairSerializer(data={
-            'email': user.email,
-            'password': request.data['password']  # Password already validated
+            'username': user.username,
+            'password': request.data['password']
         })
         token_serializer.is_valid(raise_exception=True)
         return Response(token_serializer.validated_data)
