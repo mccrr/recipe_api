@@ -1,7 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 from mongoengine import Document
-from .models import Recipe, User, Bookmarks
+from .models import Recipe, User, Bookmarks, Likes
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
@@ -22,12 +22,15 @@ class JSONListField(serializers.Field):
     def to_internal_value(self, data):
         if isinstance(data, str):
             try:
-                data = json.loads(data)
+                data = data.replace('\\"', '"')
+                parsed_data = json.loads(data)
             except json.JSONDecodeError:
                 raise serializers.ValidationError("Must be a valid JSON array of strings")
-        if not isinstance(data, list) or not all(isinstance(item, str) for item in data):
+        else:
+            parsed_data = data
+        if not isinstance(parsed_data, list) or not all(isinstance(item, str) for item in parsed_data):
             raise serializers.ValidationError("Must be a list of strings")
-        return data
+        return parsed_data
 
     def to_representation(self, value):
         return value
@@ -115,6 +118,22 @@ class BookmarksSerializer(serializers.Serializer):
         }
         return representation
 
+class LikesSerializer(serializers.Serializer):
+    id = ObjectIdField(read_only=True)
+    user = ObjectIdField(read_only=True)
+    recipe = ObjectIdField()
+
+    def create(self, validated_data):
+        return Likes(**validated_data).save()
+
+    def to_representation(self, instance):
+        representation = {
+            'id': str(instance.id),
+            'user': str(instance.user.id),
+            'recipe': str(instance.recipe.id)
+        }
+        return representation
+
 class RecipeSerializer(serializers.Serializer):
     id = ObjectIdField(read_only=True)
     title = serializers.CharField(max_length=255)
@@ -127,6 +146,8 @@ class RecipeSerializer(serializers.Serializer):
     prep_time = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     food_type = serializers.ChoiceField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'], required=False, allow_null=True)
     servings = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    likes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
 
     def get_user(self, obj):
         return {
@@ -138,6 +159,15 @@ class RecipeSerializer(serializers.Serializer):
         request = self.context.get('request')
         if request and request.user and request.user.is_authenticated:
             return Bookmarks.objects(user=request.user, recipe=obj).count() > 0
+        return False
+
+    def get_likes_count(self, obj):
+        return Likes.objects(recipe=obj).count()
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            return Likes.objects(user=request.user, recipe=obj).count() > 0
         return False
 
     def create(self, validated_data):
@@ -159,6 +189,8 @@ class RecipeSerializer(serializers.Serializer):
             'prep_time': instance.prep_time,
             'food_type': instance.food_type,
             'servings': instance.servings,
+            'likes_count': self.get_likes_count(instance),
+            'is_liked': self.get_is_liked(instance),
             'user': self.get_user(instance),
             'is_bookmarked': self.get_is_bookmarked(instance)
         }

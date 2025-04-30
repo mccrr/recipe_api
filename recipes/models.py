@@ -58,7 +58,7 @@ class Recipe(Document):
     image = ImageField()
     user = ReferenceField(User, required=True)
     prep_time = IntField(min_value=0)
-    food_type = StringField()
+    food_type = StringField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'])
     servings = IntField(min_value=1)
 
     meta = {
@@ -81,3 +81,17 @@ class Bookmarks(Document):
 
     def __str__(self):
         return f"{self.user.username} bookmarked {self.recipe.title}"
+
+class Likes(Document):
+    user = ReferenceField(User, required=True)
+    recipe = ReferenceField(Recipe, required=True)
+
+    meta = {
+        'collection': 'likes',
+        'indexes': [
+            {'fields': ['user', 'recipe'], 'unique': True}
+        ]
+    }
+
+    def __str__(self):
+        return f"{self.user.username} liked {self.recipe.title}"

@@ -2,15 +2,15 @@ from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Recipe, User, Bookmarks
-from .serializers import RecipeSerializer, UserSerializer, LoginSerializer, CustomTokenObtainPairSerializer, BookmarksSerializer
-from rest_framework.parsers import MultiPartParser, FormParser
+from .models import Recipe, User, Bookmarks, Likes
+from .serializers import RecipeSerializer, UserSerializer, LoginSerializer, CustomTokenObtainPairSerializer, BookmarksSerializer, LikesSerializer
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -49,4 +49,21 @@ class BookmarksViewSet(viewsets.ModelViewSet):
     def list_bookmarked_recipes(self, request):
         bookmarked_recipes = Recipe.objects.filter(id__in=Bookmarks.objects(user=request.user).values_list('recipe'))
         serializer = RecipeSerializer(bookmarked_recipes, many=True, context={'request': request})
+        return Response(serializer.data)
+
+class LikesViewSet(viewsets.ModelViewSet):
+    queryset = Likes.objects.all()
+    serializer_class = LikesSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def get_queryset(self):
+        return Likes.objects(user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='recipes')
+    def list_liked_recipes(self, request):
+        liked_recipes = Recipe.objects.filter(id__in=Likes.objects(user=request.user).values_list('recipe'))
+        serializer = RecipeSerializer(liked_recipes, many=True, context={'request': request})
         return Response(serializer.data)
