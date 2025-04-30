@@ -6,6 +6,7 @@ from bson import ObjectId
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 import base64
+import json
 
 class ObjectIdField(serializers.Field):
     def to_representation(self, value):
@@ -16,6 +17,20 @@ class ObjectIdField(serializers.Field):
             return ObjectId(data)
         except (TypeError, ValueError):
             raise serializers.ValidationError("Invalid ObjectId format")
+
+class JSONListField(serializers.Field):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Must be a valid JSON array of strings")
+        if not isinstance(data, list) or not all(isinstance(item, str) for item in data):
+            raise serializers.ValidationError("Must be a list of strings")
+        return data
+
+    def to_representation(self, value):
+        return value
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username = serializers.CharField(required=True)
@@ -104,11 +119,14 @@ class RecipeSerializer(serializers.Serializer):
     id = ObjectIdField(read_only=True)
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(allow_blank=True)
-    ingredients = serializers.ListField(child=serializers.CharField())
-    instructions = serializers.ListField(child=serializers.CharField())
+    ingredients = JSONListField()
+    instructions = JSONListField()
     image = serializers.ImageField(required=False, allow_null=True)
     user = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
+    prep_time = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    food_type = serializers.ChoiceField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'], required=False, allow_null=True)
+    servings = serializers.IntegerField(min_value=1, required=False, allow_null=True)
 
     def get_user(self, obj):
         return {
@@ -138,6 +156,9 @@ class RecipeSerializer(serializers.Serializer):
             'description': instance.description,
             'ingredients': instance.ingredients,
             'instructions': instance.instructions,
+            'prep_time': instance.prep_time,
+            'food_type': instance.food_type,
+            'servings': instance.servings,
             'user': self.get_user(instance),
             'is_bookmarked': self.get_is_bookmarked(instance)
         }

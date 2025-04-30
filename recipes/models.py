@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, EmailField, BooleanField, ListField, ReferenceField, ImageField
+from mongoengine import Document, StringField, EmailField, BooleanField, ListField, ReferenceField, ImageField, IntField
 from django.contrib.auth.hashers import make_password, check_password
 
 class UserManager:
@@ -57,6 +57,9 @@ class Recipe(Document):
     instructions = ListField(StringField())
     image = ImageField()
     user = ReferenceField(User, required=True)
+    prep_time = IntField(min_value=0)
+    food_type = StringField()
+    servings = IntField(min_value=1)
 
     meta = {
         'collection': 'recipes'
