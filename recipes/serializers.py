@@ -107,15 +107,42 @@ class BookmarksSerializer(serializers.Serializer):
     user = ObjectIdField(read_only=True)
     recipe = ObjectIdField()
 
+    def validate(self, attrs):
+        """
+        Check if a bookmark already exists for the user and recipe.
+        """
+        user = self.context['request'].user
+        recipe = attrs.get('recipe')
+        if Bookmarks.objects(user=user, recipe=recipe).count() > 0:
+            raise serializers.ValidationError("Bookmark already exists for this user and recipe.")
+        return attrs
+
+    def validate_recipe(self, value):
+        """
+        Ensure the recipe exists before creating a bookmark.
+        """
+        try:
+            Recipe.objects.get(id=value)
+        except (Recipe.DoesNotExist, ValueError):
+            raise serializers.ValidationError("Recipe does not exist.")
+        return value
+
     def create(self, validated_data):
         return Bookmarks(**validated_data).save()
 
     def to_representation(self, instance):
-        representation = {
-            'id': str(instance.id),
-            'user': str(instance.user.id),
-            'recipe': str(instance.recipe.id)
-        }
+        try:
+            representation = {
+                'id': str(instance.id),
+                'user': str(instance.user.id),
+                'recipe': str(instance.recipe.id) if instance.recipe else None
+            }
+        except Recipe.DoesNotExist:
+            representation = {
+                'id': str(instance.id),
+                'user': str(instance.user.id),
+                'recipe': None
+            }
         return representation
 
 class LikesSerializer(serializers.Serializer):
@@ -123,15 +150,42 @@ class LikesSerializer(serializers.Serializer):
     user = ObjectIdField(read_only=True)
     recipe = ObjectIdField()
 
+    def validate(self, attrs):
+        """
+        Check if a like already exists for the user and recipe.
+        """
+        user = self.context['request'].user
+        recipe = attrs.get('recipe')
+        if Likes.objects(user=user, recipe=recipe).count() > 0:
+            raise serializers.ValidationError("Like already exists for this user and recipe.")
+        return attrs
+
+    def validate_recipe(self, value):
+        """
+        Ensure the recipe exists before creating a like.
+        """
+        try:
+            Recipe.objects.get(id=value)
+        except (Recipe.DoesNotExist, ValueError):
+            raise serializers.ValidationError("Recipe does not exist.")
+        return value
+
     def create(self, validated_data):
         return Likes(**validated_data).save()
 
     def to_representation(self, instance):
-        representation = {
-            'id': str(instance.id),
-            'user': str(instance.user.id),
-            'recipe': str(instance.recipe.id)
-        }
+        try:
+            representation = {
+                'id': str(instance.id),
+                'user': str(instance.user.id),
+                'recipe': str(instance.recipe.id) if instance.recipe else None
+            }
+        except Recipe.DoesNotExist:
+            representation = {
+                'id': str(instance.id),
+                'user': str(instance.user.id),
+                'recipe': None
+            }
         return representation
 
 class RecipeSerializer(serializers.Serializer):

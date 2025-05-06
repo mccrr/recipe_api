@@ -65,8 +65,23 @@ class Recipe(Document):
         'collection': 'recipes'
     }
 
-    def __str__(self):
-        return self.title
+    def to_dict(self):
+        # Custom method to include user data (username)
+        recipe_dict = {
+            'id': str(self.id),
+            'title': self.title,
+            'description': self.description,
+            'ingredients': self.ingredients,
+            'instructions': self.instructions,
+            'image': str(self.image) if self.image else None,
+            'prep_time': self.prep_time,
+            'food_type': self.food_type,
+            'servings': self.servings,
+            'user': {
+                'username': self.user.username if self.user else 'Unknown'
+            }
+        }
+        return recipe_dict
 
 class Bookmarks(Document):
     user = ReferenceField(User, required=True)
