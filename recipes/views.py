@@ -12,10 +12,23 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        """
+        Return a fresh queryset of all recipes, bypassing cache.
+        """
+        return Recipe.objects.all().no_cache()
+
+    def list(self, request, *args, **kwargs):
+        """
+        Override list to ensure newly added recipes are included.
+        """
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     def get_object(self):
         """
