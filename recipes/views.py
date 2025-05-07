@@ -63,6 +63,22 @@ class BookmarksViewSet(viewsets.ModelViewSet):
     serializer_class = BookmarksSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        """
+        Return bookmarks only for the authenticated user.
+        """
+        if not self.request.user.is_authenticated:
+            return Bookmarks.objects.none()
+        return Bookmarks.objects(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        """
+        Override list to ensure only the authenticated user's bookmarks are returned.
+        """
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     def get_object(self):
         """
         Override get_object to handle MongoEngine querysets and ensure only the bookmark's owner can access/delete it.
@@ -79,9 +95,6 @@ class BookmarksViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
-    def get_queryset(self):
-        return Bookmarks.objects(user=self.request.user)
 
     @action(detail=False, methods=['post'], url_path='toggle')
     def toggle_bookmark(self, request):
