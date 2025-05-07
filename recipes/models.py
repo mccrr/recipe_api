@@ -58,7 +58,7 @@ class Recipe(Document):
     image = ImageField()
     user = ReferenceField(User, required=True)
     prep_time = IntField(min_value=0)
-    food_type = StringField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'])
+    food_type = StringField(choices=['Yemek', 'Tatlı', 'İçecek', 'Çorba'])
     servings = IntField(min_value=1)
 
     meta = {

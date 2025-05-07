@@ -7,6 +7,10 @@ from django.contrib.auth.hashers import make_password
 from django.contrib.auth import authenticate
 import base64
 import json
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class ObjectIdField(serializers.Field):
     def to_representation(self, value):
@@ -198,7 +202,7 @@ class RecipeSerializer(serializers.Serializer):
     user = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     prep_time = serializers.IntegerField(min_value=0, required=False, allow_null=True)
-    food_type = serializers.ChoiceField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'], required=False, allow_null=True)
+    food_type = serializers.ChoiceField(choices=['Yemek', 'Tatlı', 'İçecek', 'Çorba'], required=False, allow_null=True)
     servings = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
@@ -249,8 +253,22 @@ class RecipeSerializer(serializers.Serializer):
             'is_bookmarked': self.get_is_bookmarked(instance)
         }
         if instance.image:
-            image_data = instance.image.read()
-            representation['image'] = base64.b64encode(image_data).decode('utf-8')
+            try:
+                # Verify GridFS file exists
+                gridfs_id = instance.image.grid_id
+                if gridfs_id:
+                    image_data = instance.image.read()
+                    if image_data:
+                        representation['image'] = base64.b64encode(image_data).decode('utf-8')
+                    else:
+                        logger.warning(f"Empty image data for recipe {instance.id}, GridFS ID: {gridfs_id}")
+                        representation['image'] = None
+                else:
+                    logger.warning(f"No GridFS ID for image in recipe {instance.id}")
+                    representation['image'] = None
+            except Exception as e:
+                logger.error(f"Failed to read image for recipe {instance.id}: {str(e)}")
+                representation['image'] = None
         else:
             representation['image'] = None
         return representation

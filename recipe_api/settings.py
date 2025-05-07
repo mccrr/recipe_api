@@ -55,6 +55,25 @@ WSGI_APPLICATION = 'recipe_api.wsgi.application'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'debug.log',
+        },
+    },
+    'loggers': {
+        'recipes.serializers': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
 # MongoEngine Database Configuration
 USE_LOCAL_DB = config('USE_LOCAL_DB', default=False, cast=bool)
 MONGODB_URI = config('MONGO_URI', default='mongodb://127.0.0.1:27017/' if USE_LOCAL_DB else None)
@@ -73,8 +92,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
+    'DEFAULT_PAGINATION_CLASS': None
 }
 
 SIMPLE_JWT = {
