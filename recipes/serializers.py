@@ -202,9 +202,10 @@ class RecipeSerializer(serializers.Serializer):
     user = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     prep_time = serializers.IntegerField(min_value=0, required=False, allow_null=True)
-    food_type = serializers.ChoiceField(choices=['Yemek', 'Tatlı', 'İçecek', 'Çorba'], required=False, allow_null=True)
+    food_type = serializers.ChoiceField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'], required=False, allow_null=True)
     servings = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     likes_count = serializers.SerializerMethodField()
+    bookmarks_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
 
     def get_user(self, obj):
@@ -221,6 +222,9 @@ class RecipeSerializer(serializers.Serializer):
 
     def get_likes_count(self, obj):
         return Likes.objects(recipe=obj).count()
+
+    def get_bookmarks_count(self, obj):
+        return Bookmarks.objects(recipe=obj).count()
 
     def get_is_liked(self, obj):
         request = self.context.get('request')
@@ -248,13 +252,13 @@ class RecipeSerializer(serializers.Serializer):
             'food_type': instance.food_type,
             'servings': instance.servings,
             'likes_count': self.get_likes_count(instance),
+            'bookmarks_count': self.get_bookmarks_count(instance),
             'is_liked': self.get_is_liked(instance),
             'user': self.get_user(instance),
             'is_bookmarked': self.get_is_bookmarked(instance)
         }
         if instance.image:
             try:
-                # Verify GridFS file exists
                 gridfs_id = instance.image.grid_id
                 if gridfs_id:
                     image_data = instance.image.read()
