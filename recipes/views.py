@@ -10,6 +10,10 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from mongoengine.errors import DoesNotExist
 from bson import ObjectId
 from bson.errors import InvalidId
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 class RecipeViewSet(viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
@@ -51,6 +55,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Override destroy to delete associated likes and bookmarks before deleting the recipe.
+        """
+        recipe = self.get_object()
+        try:
+            # Delete associated likes and bookmarks
+            Likes.objects(recipe=recipe).delete()
+            Bookmarks.objects(recipe=recipe).delete()
+            # Delete the recipe
+            recipe.delete()
+            logger.info(f"Deleted recipe {recipe.id} with associated likes and bookmarks")
+            return Response(status=204)
+        except Exception as e:
+            logger.error(f"Error deleting recipe {recipe.id}: {str(e)}")
+            return Response({"detail": "Failed to delete recipe and associated data."}, status=500)
 
 class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserSerializer

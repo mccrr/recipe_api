@@ -202,7 +202,7 @@ class RecipeSerializer(serializers.Serializer):
     user = serializers.SerializerMethodField()
     is_bookmarked = serializers.SerializerMethodField()
     prep_time = serializers.IntegerField(min_value=0, required=False, allow_null=True)
-    food_type = serializers.ChoiceField(choices=['Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack'], required=False, allow_null=True)
+    food_type = serializers.ChoiceField(choices=['Yemek', 'Tatlı', 'İçecek', 'Çorba'], required=False, allow_null=True)
     servings = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     likes_count = serializers.SerializerMethodField()
     bookmarks_count = serializers.SerializerMethodField()
