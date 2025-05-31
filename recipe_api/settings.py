@@ -75,15 +75,24 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'mongoengine': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
     },
 }
 
-USE_LOCAL_DB = config('USE_LOCAL_DB', default=False, cast=bool)
 # Skip database connection during collectstatic
 if 'collectstatic' not in sys.argv:
-    MONGODB_URI = config('MONGO_URI', default='mongodb://127.0.0.1:27017/' if USE_LOCAL_DB else None)
-    MONGODB_NAME = config('DB_NAME', default='recipe_db')
-    connect(db=MONGODB_NAME, host=MONGODB_URI)
+    MONGODB_URI = config('MONGODB_URI')
+    MONGODB_NAME = config('MONGODB_NAME', default='recipe_db')
+    connect(
+        db=MONGODB_NAME,
+        host=MONGODB_URI,
+        serverSelectionTimeoutMS=5000,  # 5 seconds timeout
+        connectTimeoutMS=10000,         # 10 seconds connection timeout
+    )
 
 AUTHENTICATION_BACKENDS = [
     'recipes.auth_backend.MongoEngineBackend',
