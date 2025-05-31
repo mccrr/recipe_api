@@ -90,8 +90,8 @@ if 'collectstatic' not in sys.argv:
     connect(
         db=MONGODB_NAME,
         host=MONGODB_URI,
-        serverSelectionTimeoutMS=5000,  # 5 seconds timeout
-        connectTimeoutMS=10000,         # 10 seconds connection timeout
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=10000,
     )
 
 AUTHENTICATION_BACKENDS = [
