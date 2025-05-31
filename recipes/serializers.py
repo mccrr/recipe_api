@@ -9,7 +9,6 @@ import base64
 import json
 import logging
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
 class ObjectIdField(serializers.Field):
@@ -72,6 +71,7 @@ class UserSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+    createdAt = serializers.DateTimeField(read_only=True)
 
     def create(self, validated_data):
         return User.manager.create_user(**validated_data)
@@ -112,9 +112,6 @@ class BookmarksSerializer(serializers.Serializer):
     recipe = ObjectIdField()
 
     def validate(self, attrs):
-        """
-        Check if a bookmark already exists for the user and recipe.
-        """
         user = self.context['request'].user
         recipe = attrs.get('recipe')
         if Bookmarks.objects(user=user, recipe=recipe).count() > 0:
@@ -122,9 +119,6 @@ class BookmarksSerializer(serializers.Serializer):
         return attrs
 
     def validate_recipe(self, value):
-        """
-        Ensure the recipe exists before creating a bookmark.
-        """
         try:
             Recipe.objects.get(id=value)
         except (Recipe.DoesNotExist, ValueError):
@@ -155,9 +149,6 @@ class LikesSerializer(serializers.Serializer):
     recipe = ObjectIdField()
 
     def validate(self, attrs):
-        """
-        Check if a like already exists for the user and recipe.
-        """
         user = self.context['request'].user
         recipe = attrs.get('recipe')
         if Likes.objects(user=user, recipe=recipe).count() > 0:
@@ -165,9 +156,6 @@ class LikesSerializer(serializers.Serializer):
         return attrs
 
     def validate_recipe(self, value):
-        """
-        Ensure the recipe exists before creating a like.
-        """
         try:
             Recipe.objects.get(id=value)
         except (Recipe.DoesNotExist, ValueError):
@@ -207,6 +195,8 @@ class RecipeSerializer(serializers.Serializer):
     likes_count = serializers.SerializerMethodField()
     bookmarks_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    createdAt = serializers.DateTimeField(read_only=True)
+    ingredient_match_percentage = serializers.FloatField(read_only=True, required=False)
 
     def get_user(self, obj):
         return {
@@ -255,7 +245,9 @@ class RecipeSerializer(serializers.Serializer):
             'bookmarks_count': self.get_bookmarks_count(instance),
             'is_liked': self.get_is_liked(instance),
             'user': self.get_user(instance),
-            'is_bookmarked': self.get_is_bookmarked(instance)
+            'is_bookmarked': self.get_is_bookmarked(instance),
+            'createdAt': instance.createdAt.isoformat() if instance.createdAt else None,
+            'ingredient_match_percentage': getattr(instance, 'ingredient_match_percentage', None)
         }
         if instance.image:
             try:

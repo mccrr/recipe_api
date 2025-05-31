@@ -1,11 +1,19 @@
-from mongoengine import Document, StringField, EmailField, BooleanField, ListField, ReferenceField, ImageField, IntField
+from mongoengine import Document, StringField, EmailField, BooleanField, ListField, ReferenceField, DateTimeField, ImageField, IntField
 from django.contrib.auth.hashers import make_password, check_password
+from django.utils import timezone
 
 class UserManager:
     def create_user(self, username, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Users must have an email address")
-        user = User(username=username, email=email, **extra_fields)
+        if not username:
+            raise ValueError("Users must have a username")
+        user = User(
+            username=username,
+            email=email,
+            createdAt=timezone.now(),
+            **extra_fields
+        )
         user.set_password(password)
         user.save()
         return user
@@ -22,6 +30,7 @@ class User(Document):
     is_staff = BooleanField(default=False)
     is_superuser = BooleanField(default=False)
     is_active = BooleanField(default=True)
+    createdAt = DateTimeField(default=timezone.now)
 
     meta = {
         'collection': 'users'
@@ -60,13 +69,13 @@ class Recipe(Document):
     prep_time = IntField(min_value=0)
     food_type = StringField(choices=['Yemek', 'Tatlı', 'İçecek', 'Çorba'])
     servings = IntField(min_value=1)
+    createdAt = DateTimeField(default=timezone.now)
 
     meta = {
         'collection': 'recipes'
     }
 
     def to_dict(self):
-        # Custom method to include user data (username)
         recipe_dict = {
             'id': str(self.id),
             'title': self.title,
@@ -78,8 +87,10 @@ class Recipe(Document):
             'food_type': self.food_type,
             'servings': self.servings,
             'user': {
+                'id': str(self.user.id),
                 'username': self.user.username if self.user else 'Unknown'
-            }
+            },
+            'createdAt': self.createdAt.isoformat() if self.createdAt else None
         }
         return recipe_dict
 

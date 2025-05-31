@@ -7,7 +7,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -74,13 +73,11 @@ LOGGING = {
     },
 }
 
-# MongoEngine Database Configuration
 USE_LOCAL_DB = config('USE_LOCAL_DB', default=False, cast=bool)
 MONGODB_URI = config('MONGO_URI', default='mongodb://127.0.0.1:27017/' if USE_LOCAL_DB else None)
 MONGODB_NAME = config('DB_NAME', default='recipe_db')
 connect(db=MONGODB_NAME, host=MONGODB_URI)
 
-# Authentication Backends
 AUTHENTICATION_BACKENDS = [
     'recipes.auth_backend.MongoEngineBackend',
 ]
@@ -90,7 +87,7 @@ REST_FRAMEWORK = {
         'recipes.jwt_auth.MongoEngineJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ),
     'DEFAULT_PAGINATION_CLASS': None
 }

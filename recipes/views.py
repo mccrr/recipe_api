@@ -12,7 +12,6 @@ from bson import ObjectId
 from bson.errors import InvalidId
 import logging
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -20,58 +19,71 @@ class RecipeViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
-        """
-        Allow unauthenticated access for GET requests, require authentication for others.
-        """
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'recent_recipes', 'recipes_by_ingredients']:
             return [AllowAny()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        """
-        Return a fresh queryset of all recipes, bypassing cache.
-        """
-        return Recipe.objects.all().no_cache()
+        return Recipe.objects.all()
 
     def list(self, request, *args, **kwargs):
-        """
-        Override list to ensure newly added recipes are included.
-        """
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     def get_object(self):
-        """
-        Override get_object to handle MongoEngine querysets and raise 404 for non-existent recipes.
-        """
         pk = self.kwargs.get('pk')
         try:
             ObjectId(pk)
             recipe = Recipe.objects.get(id=pk)
             return recipe
-        except (DoesNotExist, InvalidId, ValueError):
+        except (DoesNotExist, InvalidId):
             raise NotFound(detail="Recipe not found.")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
-        """
-        Override destroy to delete associated likes and bookmarks before deleting the recipe.
-        """
         recipe = self.get_object()
         try:
-            # Delete associated likes and bookmarks
-            Likes.objects(recipe=recipe).delete()
-            Bookmarks.objects(recipe=recipe).delete()
-            # Delete the recipe
+            Likes.objects.filter(recipe=recipe).delete()
+            Bookmarks.objects.filter(recipe=recipe).delete()
             recipe.delete()
             logger.info(f"Deleted recipe {recipe.id} with associated likes and bookmarks")
             return Response(status=204)
         except Exception as e:
             logger.error(f"Error deleting recipe {recipe.id}: {str(e)}")
             return Response({"detail": "Failed to delete recipe and associated data."}, status=500)
+
+    @action(detail=False, methods=['get'], url_path='recent')
+    def recent_recipes(self, request):
+        limit = int(request.query_params.get('limit', 5))
+        if limit not in [5, 10]:
+            limit = 5
+        recipes = Recipe.objects.order_by('-createdAt')[:limit]
+        serializer = self.get_serializer(recipes, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='by-ingredients')
+    def recipes_by_ingredients(self, request):
+        ingredients = request.data.get('ingredients', [])
+        if not ingredients or not isinstance(ingredients, list):
+            return Response({"detail": "Ingredients list is required."}, status=400)
+        ingredients = [ingredient.lower().strip() for ingredient in ingredients]
+        recipes = Recipe.objects.all()
+        matching_recipes = []
+        for recipe in recipes:
+            required_ingredients = [ing.lower().strip() for ing in recipe.ingredients]
+            if not required_ingredients:
+                continue
+            matched_ingredients = [ing for ing in required_ingredients if ing in ingredients]
+            match_percentage = (len(matched_ingredients) / len(required_ingredients)) * 100
+            if match_percentage >= 50:
+                recipe_data = RecipeSerializer(recipe, context={'request': request}).data
+                recipe_data['ingredient_match_percentage'] = round(match_percentage, 2)
+                matching_recipes.append(recipe_data)
+        matching_recipes.sort(key=lambda x: x['ingredient_match_percentage'], reverse=True)
+        return Response(matching_recipes)
 
 class UserRegistrationView(generics.CreateAPIView):
     serializer_class = UserSerializer
@@ -100,30 +112,20 @@ class LoginView(generics.GenericAPIView):
         return Response(token_serializer.validated_data)
 
 class BookmarksViewSet(viewsets.ModelViewSet):
-    queryset = Bookmarks.objects.all()
     serializer_class = BookmarksSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Return bookmarks only for the authenticated user.
-        """
         if not self.request.user.is_authenticated:
             return Bookmarks.objects.none()
         return Bookmarks.objects(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        """
-        Override list to ensure only the authenticated user's bookmarks are returned.
-        """
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
     def get_object(self):
-        """
-        Override get_object to handle MongoEngine querysets and ensure only the bookmark's owner can access/delete it.
-        """
         pk = self.kwargs.get('pk')
         try:
             ObjectId(pk)
@@ -131,7 +133,7 @@ class BookmarksViewSet(viewsets.ModelViewSet):
             if bookmark.user != self.request.user:
                 raise PermissionDenied(detail="You do not have permission to access this bookmark.")
             return bookmark
-        except (DoesNotExist, InvalidId, ValueError):
+        except (DoesNotExist, InvalidId):
             raise NotFound(detail="Bookmark not found.")
 
     def perform_create(self, serializer):
@@ -139,9 +141,6 @@ class BookmarksViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='toggle')
     def toggle_bookmark(self, request):
-        """
-        Toggle bookmark for a recipe. If bookmarked, delete it; otherwise, create it.
-        """
         recipe_id = request.data.get('recipe')
         if not recipe_id:
             return Response({"detail": "Recipe ID is required."}, status=400)
@@ -149,7 +148,7 @@ class BookmarksViewSet(viewsets.ModelViewSet):
         try:
             ObjectId(recipe_id)
             recipe = Recipe.objects.get(id=recipe_id)
-        except (DoesNotExist, InvalidId, ValueError):
+        except (DoesNotExist, InvalidId):
             return Response({"detail": "Recipe not found."}, status=404)
 
         bookmark = Bookmarks.objects(user=request.user, recipe=recipe).first()
@@ -163,19 +162,26 @@ class BookmarksViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='recipes')
     def list_bookmarked_recipes(self, request):
-        bookmarked_recipes = Recipe.objects.filter(id__in=Bookmarks.objects(user=request.user).values_list('recipe'))
+        bookmark_ids = [b.recipe.id for b in Bookmarks.objects(user=request.user)]
+        bookmarked_recipes = Recipe.objects(id__in=bookmark_ids)
         serializer = RecipeSerializer(bookmarked_recipes, many=True, context={'request': request})
         return Response(serializer.data)
 
 class LikesViewSet(viewsets.ModelViewSet):
-    queryset = Likes.objects.all()
     serializer_class = LikesSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Likes.objects.none()
+        return Likes.objects(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
+
     def get_object(self):
-        """
-        Override get_object to handle MongoEngine querysets and ensure only the like's owner can access/delete it.
-        """
         pk = self.kwargs.get('pk')
         try:
             ObjectId(pk)
@@ -183,20 +189,14 @@ class LikesViewSet(viewsets.ModelViewSet):
             if like.user != self.request.user:
                 raise PermissionDenied(detail="You do not have permission to access this like.")
             return like
-        except (DoesNotExist, InvalidId, ValueError):
+        except (DoesNotExist, InvalidId):
             raise NotFound(detail="Like not found.")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-    def get_queryset(self):
-        return Likes.objects(user=self.request.user)
-
     @action(detail=False, methods=['post'], url_path='toggle')
     def toggle_like(self, request):
-        """
-        Toggle like for a recipe. If liked, delete it; otherwise, create it.
-        """
         recipe_id = request.data.get('recipe')
         if not recipe_id:
             return Response({"detail": "Recipe ID is required."}, status=400)
@@ -204,7 +204,7 @@ class LikesViewSet(viewsets.ModelViewSet):
         try:
             ObjectId(recipe_id)
             recipe = Recipe.objects.get(id=recipe_id)
-        except (DoesNotExist, InvalidId, ValueError):
+        except (DoesNotExist, InvalidId):
             return Response({"detail": "Recipe not found."}, status=404)
 
         like = Likes.objects(user=request.user, recipe=recipe).first()
@@ -218,6 +218,7 @@ class LikesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='recipes')
     def list_liked_recipes(self, request):
-        liked_recipes = Recipe.objects.filter(id__in=Likes.objects(user=request.user).values_list('recipe'))
+        like_ids = [l.recipe.id for l in Likes.objects(user=request.user)]
+        liked_recipes = Recipe.objects(id__in=like_ids)
         serializer = RecipeSerializer(liked_recipes, many=True, context={'request': request})
         return Response(serializer.data)
