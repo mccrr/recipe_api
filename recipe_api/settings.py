@@ -3,12 +3,13 @@ from decouple import config
 from datetime import timedelta
 from mongoengine import connect
 import os
+import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'recipes',
@@ -77,9 +78,12 @@ LOGGING = {
     },
 }
 
-MONGODB_URI = config('MONGODB_URI')
-MONGODB_NAME = config('MONGODB_NAME', default='recipe_db')
-connect(db=MONGODB_NAME, host=MONGODB_URI)
+USE_LOCAL_DB = config('USE_LOCAL_DB', default=False, cast=bool)
+# Skip database connection during collectstatic
+if 'collectstatic' not in sys.argv:
+    MONGODB_URI = config('MONGO_URI', default='mongodb://127.0.0.1:27017/' if USE_LOCAL_DB else None)
+    MONGODB_NAME = config('DB_NAME', default='recipe_db')
+    connect(db=MONGODB_NAME, host=MONGODB_URI)
 
 AUTHENTICATION_BACKENDS = [
     'recipes.auth_backend.MongoEngineBackend',

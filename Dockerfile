@@ -7,7 +7,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+# Ensure staticfiles directory exists
+RUN mkdir -p staticfiles
+
+# Run collectstatic with dummy SECRET_KEY
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
